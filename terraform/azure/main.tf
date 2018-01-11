@@ -6,57 +6,57 @@ provider "azurerm" {
 
 # Create a resource group if it doesn’t exist
 resource "azurerm_resource_group" "nationalparks" {
-    name     = "habitat"
-    location = "West US"
+  name     = "habitat"
+  location = "West US"
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
     X-Application = "national-parks"
     X-ManagedBy   = "Terraform"
-    }
+  }
 }
 
 # Create virtual network
 resource "azurerm_virtual_network" "nationalparks" {
-    name                = "nationalparks"
-    address_space       = ["10.0.0.0/16"]
-    location            = "West US"
-    resource_group_name = "${azurerm_resource_group.nationalparks.name}"
+  name                = "nationalparks"
+  address_space       = ["10.0.0.0/16"]
+  location            = "West US"
+  resource_group_name = "${azurerm_resource_group.nationalparks.name}"
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
     X-Application = "national-parks"
     X-ManagedBy   = "Terraform"
-    }
+  }
 }
 
 # Create subnet
 resource "azurerm_subnet" "nationalparks" {
-    name                 = "nationalparks"
-    resource_group_name  = "${azurerm_resource_group.nationalparks.name}"
-    virtual_network_name = "${azurerm_virtual_network.nationalparks.name}"
-    address_prefix       = "10.0.1.0/24"
+  name                 = "nationalparks"
+  resource_group_name  = "${azurerm_resource_group.nationalparks.name}"
+  virtual_network_name = "${azurerm_virtual_network.nationalparks.name}"
+  address_prefix       = "10.0.1.0/24"
 }
 
 # Create public IPs
 resource "azurerm_public_ip" "nationalparks" {
-    name                         = "habitat"
-    location                     = "West US"
-    resource_group_name          = "${azurerm_resource_group.nationalparks.name}"
-    public_ip_address_allocation = "dynamic"
+  name                         = "habitat"
+  location                     = "West US"
+  resource_group_name          = "${azurerm_resource_group.nationalparks.name}"
+  public_ip_address_allocation = "dynamic"
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
     X-Application = "national-parks"
     X-ManagedBy   = "Terraform"
-    }
+  }
 }
 
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "nationalparks" {
-    name                = "nationalparks"
-    location            = "West US"
-    resource_group_name = "${azurerm_resource_group.nationalparks.name}"
+  name                = "nationalparks"
+  location            = "West US"
+  resource_group_name = "${azurerm_resource_group.nationalparks.name}"
 
   security_rule {
     name                       = "SSH"
@@ -119,92 +119,93 @@ resource "azurerm_network_security_group" "nationalparks" {
   }
 
   tags {
-      X-Contact     = "The Example Maintainer <maintainer@example.com>"
-      X-Application = "national-parks"
-      X-ManagedBy   = "Terraform"
-    }
+    X-Contact     = "The Example Maintainer <maintainer@example.com>"
+    X-Application = "national-parks"
+    X-ManagedBy   = "Terraform"
+  }
 }
 
 # Create network interface
 resource "azurerm_network_interface" "nationalparks" {
-    name                      = "nationalparks"
-    location                  = "West US"
-    resource_group_name       = "${azurerm_resource_group.nationalparks.name}"
-    network_security_group_id = "${azurerm_network_security_group.nationalparks.id}"
+  name                      = "nationalparks"
+  location                  = "West US"
+  resource_group_name       = "${azurerm_resource_group.nationalparks.name}"
+  network_security_group_id = "${azurerm_network_security_group.nationalparks.id}"
 
-    ip_configuration {
-        name                          = "myNicConfiguration"
-        subnet_id                     = "${azurerm_subnet.nationalparks.id}"
-        private_ip_address_allocation = "dynamic"
-        public_ip_address_id          = "${azurerm_public_ip.nationalparks.id}"
-    }
-
-    tags {
-      X-Contact     = "The Example Maintainer <maintainer@example.com>"
-      X-Application = "national-parks"
-      X-ManagedBy   = "Terraform"
-    }
-}
-
-# Generate random text for a unique storage account name
-resource "random_id" "randomId" {
-    keepers = {
-        # Generate a new ID only when a new resource group is defined
-        resource_group = "${azurerm_resource_group.nationalparks.name}"
-    }
-
-    byte_length = 8
-}
-
-# Create storage account for boot diagnostics
-resource "azurerm_storage_account" "nationalparks" {
-    name                        = "diag${random_id.randomId.hex}"
-    resource_group_name         = "${azurerm_resource_group.nationalparks.name}"
-    location                    = "West US"
-    account_tier                = "Standard"
-    account_replication_type    = "LRS"
+  ip_configuration {
+    name                          = "myNicConfiguration"
+    subnet_id                     = "${azurerm_subnet.nationalparks.id}"
+    private_ip_address_allocation = "dynamic"
+    public_ip_address_id          = "${azurerm_public_ip.nationalparks.id}"
+  }
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
     X-Application = "national-parks"
     X-ManagedBy   = "Terraform"
-    }
+  }
+}
+
+# Generate random text for a unique storage account name
+resource "random_id" "randomId" {
+  keepers = {
+    # Generate a new ID only when a new resource group is defined
+    resource_group = "${azurerm_resource_group.nationalparks.name}"
+  }
+
+  byte_length = 8
+}
+
+# Create storage account for boot diagnostics
+resource "azurerm_storage_account" "nationalparks" {
+  name                     = "diag${random_id.randomId.hex}"
+  resource_group_name      = "${azurerm_resource_group.nationalparks.name}"
+  location                 = "West US"
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+
+  tags {
+    X-Contact     = "The Example Maintainer <maintainer@example.com>"
+    X-Application = "national-parks"
+    X-ManagedBy   = "Terraform"
+  }
 }
 
 # Create virtual machine
 resource "azurerm_virtual_machine" "nationalparks" {
-    name                  = "nationalparks"
-    location              = "West US"
-    resource_group_name   = "${azurerm_resource_group.nationalparks.name}"
-    network_interface_ids = ["${azurerm_network_interface.nationalparks.id}"]
-    vm_size               = "Standard_DS1_v2"
+  name                  = "nationalparks"
+  location              = "West US"
+  resource_group_name   = "${azurerm_resource_group.nationalparks.name}"
+  network_interface_ids = ["${azurerm_network_interface.nationalparks.id}"]
+  vm_size               = "Standard_DS1_v2"
 
-    storage_os_disk {
-        name              = "myOsDisk"
-        caching           = "ReadWrite"
-        create_option     = "FromImage"
-        managed_disk_type = "Premium_LRS"
-    }
+  storage_os_disk {
+    name              = "myOsDisk"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Premium_LRS"
+  }
 
-    storage_image_reference {
-        publisher = "Canonical"
-        offer     = "UbuntuServer"
-        sku       = "16.04.0-LTS"
-        version   = "latest"
-    }
+  storage_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "16.04.0-LTS"
+    version   = "latest"
+  }
 
-    os_profile {
-        computer_name  = "nationalparks-initialpeer"
-        admin_username = "azureuser"
-    }
+  os_profile {
+    computer_name  = "nationalparks-initialpeer"
+    admin_username = "azureuser"
+  }
 
-    os_profile_linux_config {
-        disable_password_authentication = true
-        ssh_keys {
-            path     = "/home/azureuser/.ssh/authorized_keys"
-            key_data = "${file("${var.azure_ssh_key_path}")}"
-        }
+  os_profile_linux_config {
+    disable_password_authentication = true
+
+    ssh_keys {
+      path     = "/home/azureuser/.ssh/authorized_keys"
+      key_data = "${file("${var.azure_ssh_key_path}")}"
     }
+  }
 
   connection {
     user        = "azureuser"
@@ -235,7 +236,7 @@ resource "azurerm_virtual_machine" "nationalparks" {
   }
 
   boot_diagnostics {
-    enabled = "true"
+    enabled     = "true"
     storage_uri = "${azurerm_storage_account.nationalparks.primary_blob_endpoint}"
   }
 
