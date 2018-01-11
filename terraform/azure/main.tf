@@ -1,3 +1,7 @@
+terraform {
+  required_version = "> 0.11.0"
+}
+
 # Configure the Microsoft Azure Provider
 provider "azurerm" {
   subscription_id = "${var.azure_sub_id}"
@@ -5,9 +9,9 @@ provider "azurerm" {
 }
 
 # Create a resource group if it doesn’t exist
-resource "azurerm_resource_group" "nationalparks" {
-  name     = "habitat"
-  location = "West US"
+resource "azurerm_resource_group" "rg" {
+  name     = "${var.application}-rg"
+  location = "${var.azure_region}"
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
@@ -17,11 +21,11 @@ resource "azurerm_resource_group" "nationalparks" {
 }
 
 # Create virtual network
-resource "azurerm_virtual_network" "nationalparks" {
-  name                = "nationalparks"
+resource "azurerm_virtual_network" "vnet" {
+  name                = "${var.application}-vnet"
   address_space       = ["10.0.0.0/16"]
-  location            = "West US"
-  resource_group_name = "${azurerm_resource_group.nationalparks.name}"
+  location            = "${var.azure_region}"
+  resource_group_name = "${azurerm_resource_group.rg.name}"
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
@@ -31,19 +35,20 @@ resource "azurerm_virtual_network" "nationalparks" {
 }
 
 # Create subnet
-resource "azurerm_subnet" "nationalparks" {
-  name                 = "nationalparks"
-  resource_group_name  = "${azurerm_resource_group.nationalparks.name}"
-  virtual_network_name = "${azurerm_virtual_network.nationalparks.name}"
-  address_prefix       = "10.0.1.0/24"
+resource "azurerm_subnet" "subnet" {
+  name                 = "${var.application}-subnet"
+  resource_group_name  = "${azurerm_resource_group.rg.name}"
+  virtual_network_name = "${azurerm_virtual_network.vnet.name}"
+  address_prefix       = "10.0.10.0/24"
 }
 
 # Create public IPs
-resource "azurerm_public_ip" "nationalparks" {
-  name                         = "habitat"
-  location                     = "West US"
-  resource_group_name          = "${azurerm_resource_group.nationalparks.name}"
+resource "azurerm_public_ip" "pip" {
+  name                         = "${var.application}-pip-${count.index}"
+  location                     = "${var.azure_region}"
+  resource_group_name          = "${azurerm_resource_group.rg.name}"
   public_ip_address_allocation = "dynamic"
+  count = 3
 
   tags {
     X-Contact     = "The Example Maintainer <maintainer@example.com>"
@@ -53,10 +58,10 @@ resource "azurerm_public_ip" "nationalparks" {
 }
 
 # Create Network Security Group and rule
-resource "azurerm_network_security_group" "nationalparks" {
-  name                = "nationalparks"
-  location            = "West US"
-  resource_group_name = "${azurerm_resource_group.nationalparks.name}"
+resource "azurerm_network_security_group" "sg" {
+  name                = "${var.application}-sg"
+  location            = "${var.azure_region}"
+  resource_group_name = "${azurerm_resource_group.rg.name}"
 
   security_rule {
     name                       = "SSH"
@@ -126,17 +131,18 @@ resource "azurerm_network_security_group" "nationalparks" {
 }
 
 # Create network interface
-resource "azurerm_network_interface" "nationalparks" {
-  name                      = "nationalparks"
-  location                  = "West US"
-  resource_group_name       = "${azurerm_resource_group.nationalparks.name}"
-  network_security_group_id = "${azurerm_network_security_group.nationalparks.id}"
+resource "azurerm_network_interface" "nic" {
+  name                      = "${var.application}-nic${count.index}"
+  location                  = "${var.azure_region}"
+  resource_group_name       = "${azurerm_resource_group.rg.name}"
+  network_security_group_id = "${azurerm_network_security_group.sg.id}"
+  count = 3
 
   ip_configuration {
-    name                          = "myNicConfiguration"
-    subnet_id                     = "${azurerm_subnet.nationalparks.id}"
+    name                          = "ipconfig${count.index}"
+    subnet_id                     = "${azurerm_subnet.subnet.id}"
     private_ip_address_allocation = "dynamic"
-    public_ip_address_id          = "${azurerm_public_ip.nationalparks.id}"
+    public_ip_address_id          = "${element(azurerm_public_ip.pip.*.id, count.index)}"
   }
 
   tags {
@@ -150,17 +156,17 @@ resource "azurerm_network_interface" "nationalparks" {
 resource "random_id" "randomId" {
   keepers = {
     # Generate a new ID only when a new resource group is defined
-    resource_group = "${azurerm_resource_group.nationalparks.name}"
+    resource_group = "${azurerm_resource_group.rg.name}"
   }
 
   byte_length = 8
 }
 
 # Create storage account for boot diagnostics
-resource "azurerm_storage_account" "nationalparks" {
-  name                     = "diag${random_id.randomId.hex}"
-  resource_group_name      = "${azurerm_resource_group.nationalparks.name}"
-  location                 = "West US"
+resource "azurerm_storage_account" "stor" {
+  name                     = "stor${random_id.randomId.hex}"
+  resource_group_name      = "${azurerm_resource_group.rg.name}"
+  location                 = "${var.azure_region}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
@@ -172,15 +178,15 @@ resource "azurerm_storage_account" "nationalparks" {
 }
 
 # Create virtual machine
-resource "azurerm_virtual_machine" "nationalparks" {
-  name                  = "nationalparks"
-  location              = "West US"
-  resource_group_name   = "${azurerm_resource_group.nationalparks.name}"
-  network_interface_ids = ["${azurerm_network_interface.nationalparks.id}"]
+resource "azurerm_virtual_machine" "initial-peer" {
+  name                  = "${var.application}-initialpeer"
+  location              = "${var.azure_region}"
+  resource_group_name   = "${azurerm_resource_group.rg.name}"
+  network_interface_ids = ["${azurerm_network_interface.nic.0.id}"]
   vm_size               = "Standard_DS1_v2"
 
   storage_os_disk {
-    name              = "myOsDisk"
+    name              = "${var.application}-initialpeer-osdisk"
     caching           = "ReadWrite"
     create_option     = "FromImage"
     managed_disk_type = "Premium_LRS"
@@ -194,21 +200,21 @@ resource "azurerm_virtual_machine" "nationalparks" {
   }
 
   os_profile {
-    computer_name  = "nationalparks-initialpeer"
-    admin_username = "azureuser"
+    computer_name  = "${var.application}-initialpeer"
+    admin_username = "${var.azure_image_user}"
   }
 
   os_profile_linux_config {
     disable_password_authentication = true
 
     ssh_keys {
-      path     = "/home/azureuser/.ssh/authorized_keys"
+      path     = "/home/${var.azure_image_user}/.ssh/authorized_keys"
       key_data = "${file("${var.azure_ssh_key_path}")}"
     }
   }
 
   connection {
-    user        = "azureuser"
+    user        = "${var.azure_image_user}"
     private_key = "${file("${var.azure_ssh_key_path}")}"
   }
 
@@ -228,7 +234,7 @@ resource "azurerm_virtual_machine" "nationalparks" {
       "sudo useradd -g hab hab",
       "chmod +x /tmp/install_hab.sh",
       "sudo /tmp/install_hab.sh",
-      "sudo mv /home/azureuser/hab-sup.service /etc/systemd/system/hab-sup.service",
+      "sudo mv /home/${var.azure_image_user}/hab-sup.service /etc/systemd/system/hab-sup.service",
       "sudo systemctl daemon-reload",
       "sudo systemctl start hab-sup",
       "sudo systemctl enable hab-sup",
@@ -237,7 +243,7 @@ resource "azurerm_virtual_machine" "nationalparks" {
 
   boot_diagnostics {
     enabled     = "true"
-    storage_uri = "${azurerm_storage_account.nationalparks.primary_blob_endpoint}"
+    storage_uri = "${azurerm_storage_account.stor.primary_blob_endpoint}"
   }
 
   tags {
@@ -251,7 +257,7 @@ resource "azurerm_virtual_machine" "nationalparks" {
 // Templates
 
 data "template_file" "initial_peer" {
-  template = "${file("../templates/hab-sup.service")}"
+  template = "${file("${path.module}/../templates/hab-sup.service")}"
 
   vars {
     flags = "--auto-update --listen-gossip 0.0.0.0:9638 --listen-http 0.0.0.0:9631 --permanent-peer"
@@ -259,7 +265,8 @@ data "template_file" "initial_peer" {
 }
 
 data "template_file" "sup_service" {
-  template = "${file("../templates/hab-sup.service")}"
+  depends_on = ["azurerm_virtual_machine.initial-peer"]
+  template = "${file("${path.module}/../templates/hab-sup.service")}"
 
   vars {
     flags = "--auto-update --peer 127.0.0.1 --listen-gossip 0.0.0.0:9638 --listen-http 0.0.0.0:9631"
@@ -267,5 +274,5 @@ data "template_file" "sup_service" {
 }
 
 data "template_file" "install_hab" {
-  template = "${file("../templates/install-hab.sh")}"
+  template = "${file("${path.module}/../templates/install-hab.sh")}"
 }

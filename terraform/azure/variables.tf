@@ -1,3 +1,7 @@
+variable "azure_region" {
+  default = "westus2"
+}
+
 variable "azure_ssh_key_path" {
   default = "/path/to/ssh/key"
 }
@@ -12,4 +16,8 @@ variable "azure_sub_id" {
 
 variable "azure_tenant_id" {
   default = "xxxxxxx-xxxx-xxxx-xxxxxxxxxx"
+}
+
+variable "application" {
+  default = "nationalparks"
 }
