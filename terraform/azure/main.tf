@@ -202,13 +202,13 @@ resource "azurerm_virtual_machine" "nationalparks" {
         disable_password_authentication = true
         ssh_keys {
             path     = "/home/azureuser/.ssh/authorized_keys"
-            key_data = "${file("${var.azure_ssh_key}")}"
+            key_data = "${file("${var.azure_ssh_key_path}")}"
         }
     }
 
   connection {
     user        = "azureuser"
-    private_key = "${file("${var.azure_ssh_key}")}"
+    private_key = "${file("${var.azure_ssh_key_path}")}"
   }
 
   provisioner "file" {

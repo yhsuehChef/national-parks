@@ -1,9 +1,9 @@
-variable "azure_ssh_key" {
-  default = "/Users/campbell/.ssh/id_rsa.pub"
+variable "azure_ssh_key_path" {
+  default = "/path/to/ssh/key"
 }
 
 variable "azure_image_user" {
-  default = "campbell"
+  default = "user"
 }
 
 variable "azure_sub_id" {
